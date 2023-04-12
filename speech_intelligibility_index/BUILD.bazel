@@ -1,0 +1,16 @@
+# Testing instructions for the speech intelligibility index source files.
+
+py_library(
+    name = "sii_lib",
+    srcs = [
+        "sii.py",
+    ],
+)
+
+py_test(
+    name = "sii_test",
+    srcs = ["sii_test.py"],
+    deps = [
+        ":sii_lib",
+    ]
+)
