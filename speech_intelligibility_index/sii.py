@@ -15,7 +15,8 @@
 """Python implementation of ANSI S3.5-1997  - Speech Intelligibility Index.
 
 This code implements a model of speech intelligibility based on measurements
-of the speech spectrum, and the underlying noise.
+of the speech spectrum, and the underlying noise. It implements the one-third
+octave band SII procedure.
 
 Original Matlab Version Copyright 2003-2005 Hannes Muesch
 Translation to Matlab by Malcolm Slaney, Google Sound Understanding Team
@@ -35,10 +36,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import Tuple
+from typing import List, Tuple, Union
 import warnings
 
 import numpy as np
+
+
+# From Table 3 of the ANSI Standard
+mid_band_freqs = [160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600,
+                  2000, 2500, 3159, 4000, 5000, 6300, 8000]
+
+bandwidth_db = np.arange(15.65, 33.65, 1.0)  # Column 3
+bandwidth_hz = 10**(bandwidth_db/10)
 
 
 def speech_spectrum(vocal_effort: str) -> np.ndarray:
@@ -89,7 +98,8 @@ def speech_spectrum(vocal_effort: str) -> np.ndarray:
     raise ValueError(f'Identifier string {vocal_effort} not recognized')
 
 
-def band_importance(test_number: int) -> np.ndarray:
+def band_importance(test_number: Union[int, List[float],
+                                       np.ndarray]) -> np.ndarray:
   """Return a weighting vector for different kinds of tests.
 
   Args:
@@ -108,32 +118,38 @@ def band_importance(test_number: int) -> np.ndarray:
   Returns:
     An np vector showing the importance of each band.
   """
-  if test_number < 1 or test_number > 8:
-    raise ValueError('Test number must be between 1 and 8')
+  if isinstance(test_number, int):
+    if test_number < 1 or test_number > 8:
+      raise ValueError('Test number must be between 1 and 8')
 
-  # pylint: disable=bad-whitespace  # To make it easier to read columns
-  band_importance_array = [
-      [0.0083, 0,      0.0365, 0.0168, 0,      0.0114, 0, 0.0082],
-      [0.0095, 0,      0.0279, 0.013,  0.024,  0.0153, 0.0255,  0.0168],
-      [0.015,  0.0153, 0.0405, 0.0211, 0.033,  0.0179, 0.0256,  0.0255],
-      [0.0289, 0.0284, 0.05,   0.0344, 0.039,  0.0558, 0.036,   0.0374],
-      [0.044,  0.0363, 0.053,  0.0517, 0.0571, 0.0898, 0.0362,  0.0637],
-      [0.0578, 0.0422, 0.0518, 0.0737, 0.0691, 0.0944, 0.0514,  0.0694],
-      [0.0653, 0.0509, 0.0514, 0.0658, 0.0781, 0.0709, 0.0616,  0.0529],
-      [0.0711, 0.0584, 0.0575, 0.0644, 0.0751, 0.066,  0.077,   0.0374],
-      [0.0818, 0.0667, 0.0717, 0.0664, 0.0781, 0.0628, 0.0718,  0.0441],
-      [0.0844, 0.0774, 0.0873, 0.0802, 0.0811, 0.0672, 0.0718,  0.0784],
-      [0.0882, 0.0893, 0.0902, 0.0987, 0.0961, 0.0747, 0.1075,  0.1035],
-      [0.0898, 0.1104, 0.0938, 0.1171, 0.0901, 0.0755, 0.0921,  0.1023],
-      [0.0868, 0.112,  0.0928, 0.0932, 0.0781, 0.082,  0.1026,  0.0926],
-      [0.0844, 0.0981, 0.0678, 0.0783, 0.0691, 0.0808, 0.0922,  0.0738],
-      [0.0771, 0.0867, 0.0498, 0.0562, 0.048,  0.0483, 0.0719,  0.0596],
-      [0.0527, 0.0728, 0.0312, 0.0337, 0.033,  0.0453, 0.0461,  0.0454],
-      [0.0364, 0.0551, 0.0215, 0.0177, 0.027,  0.0274, 0.0306,  0.0365],
-      [0.0185, 0,      0.0253, 0.0176, 0.024,  0.0145, 0, 0.0275]
-      ]
-  band_importance_array = np.array(band_importance_array)
-  return band_importance_array[:, test_number-1]
+    # pylint: disable=bad-whitespace  # To make it easier to read columns
+    band_importance_array = [
+        [0.0083, 0,      0.0365, 0.0168, 0,      0.0114, 0, 0.0082],
+        [0.0095, 0,      0.0279, 0.013,  0.024,  0.0153, 0.0255,  0.0168],
+        [0.015,  0.0153, 0.0405, 0.0211, 0.033,  0.0179, 0.0256,  0.0255],
+        [0.0289, 0.0284, 0.05,   0.0344, 0.039,  0.0558, 0.036,   0.0374],
+        [0.044,  0.0363, 0.053,  0.0517, 0.0571, 0.0898, 0.0362,  0.0637],
+        [0.0578, 0.0422, 0.0518, 0.0737, 0.0691, 0.0944, 0.0514,  0.0694],
+        [0.0653, 0.0509, 0.0514, 0.0658, 0.0781, 0.0709, 0.0616,  0.0529],
+        [0.0711, 0.0584, 0.0575, 0.0644, 0.0751, 0.066,  0.077,   0.0374],
+        [0.0818, 0.0667, 0.0717, 0.0664, 0.0781, 0.0628, 0.0718,  0.0441],
+        [0.0844, 0.0774, 0.0873, 0.0802, 0.0811, 0.0672, 0.0718,  0.0784],
+        [0.0882, 0.0893, 0.0902, 0.0987, 0.0961, 0.0747, 0.1075,  0.1035],
+        [0.0898, 0.1104, 0.0938, 0.1171, 0.0901, 0.0755, 0.0921,  0.1023],
+        [0.0868, 0.112,  0.0928, 0.0932, 0.0781, 0.082,  0.1026,  0.0926],
+        [0.0844, 0.0981, 0.0678, 0.0783, 0.0691, 0.0808, 0.0922,  0.0738],
+        [0.0771, 0.0867, 0.0498, 0.0562, 0.048,  0.0483, 0.0719,  0.0596],
+        [0.0527, 0.0728, 0.0312, 0.0337, 0.033,  0.0453, 0.0461,  0.0454],
+        [0.0364, 0.0551, 0.0215, 0.0177, 0.027,  0.0274, 0.0306,  0.0365],
+        [0.0185, 0,      0.0253, 0.0176, 0.024,  0.0145, 0, 0.0275]
+        ]
+    band_importance_array = np.array(band_importance_array)
+    return band_importance_array[:, test_number-1]
+  else:
+    importance = np.asarray(test_number)
+    if importance.shape[0] != 18:
+      raise ValueError('Supplied band importance must have 18 values')
+  return importance
 
 
 def input_5p1(ssl, nsl=None, insertion_gain=None,
@@ -220,10 +236,13 @@ def input_5p1(ssl, nsl=None, insertion_gain=None,
   if nsl is None:
     nsl = -50*np.ones(18)
   else:
-    nsl += insertion_gain                         # Eq. 18
+    nsl = np.asarray(nsl) + np.asarray(insertion_gain)  # Eq. 18
 
   # DERIVE EQUIVALENT HEARING THRESHOLD LEVEL
-  hearing_threshold = hearing_threshold or np.zeros(18)
+  if hearing_threshold is None:
+    hearing_threshold = np.zeros(18)
+  else:
+    hearing_threshold = np.asarray(hearing_threshold)
 
   if num_channels != 1 and num_channels != 2:
     raise ValueError('Invalid value of num_channels specified!')
@@ -240,6 +259,12 @@ def sii(ssl, nsl=None, hearing_threshold=None,
 
   Methods for calculation of the Speech Intelligibility Index"
     (ANSI S3.5-1997). Python implementation of Section 4.
+
+  The speech and noise spectrum levels are the power per Hz in dB.
+  Spectrum levels are the amount of power (in dB) per Hz.  This can be written
+  as the sum of the power in a band divided by the bandwidth, in the limit as
+  the bandwidth goes to zero. More practically, the power in a band is the
+  spectrum *level* multiplied by the filter's bandwidth.
 
   Note: The remaining sections of the standard, which provide means to
   calculate input parameters required by the "core" SII procedure of Section
