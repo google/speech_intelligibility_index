@@ -39,7 +39,59 @@ import numpy as np
 import sii
 
 
+class ChasTest(absltest.TestCase):
+  """These tests come from Chas' original C code."""
+
+  def test_to(self):
+    """1/3-Octave Procedure."""
+    ssl = [90, 5, 40, 40, 40, 40, 40, 40, 40, 40,
+           40, 40, 40, 40, -10, -10, -10, -10]
+    nsl = [10, -10, -10, 75, -10, -10, -10, -10, -10,
+           -10, -10, -10, -10, -10, 10, 10, 10, 10]
+    thresh = [90, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+    result = sii.sii(ssl=ssl, nsl=nsl, hearing_threshold=thresh)
+    np.testing.assert_allclose(result, .445, atol=1e-3)
+
+  def test_to_1(self):
+    """1/3-Octave Procedure with alternative band importance function."""
+    ssl = [90, 5, 40, 40, 40, 40, 40, 40, 40, 40,
+           40, 40, 40, 40, -10, -10, -10, -10]
+    nsl = [10, -10, -10, 75, -10, -10, -10, -10,
+           -10, -10, -10, -10, -10, -10, 10, 10, 10, 10]
+    thresh = [90, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    importance = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0.1, 0.1,
+                  0.1, 0.1, 0.1, 0.1, 0.1, 0.3, 0]
+
+    result = sii.sii(ssl=ssl, nsl=nsl, hearing_threshold=thresh,
+                     band_importance_function=importance)
+    np.testing.assert_allclose(result, .438, atol=1e-3)
+
+
 class ExampleTest(absltest.TestCase):
+
+  def test_tables(self):
+    """Test our values from Table 3 for sanity."""
+    self.assertLen(sii.mid_band_freqs, 18)
+    self.assertLen(sii.bandwidth_db, 18)
+    self.assertLen(sii.bandwidth_hz, 18)
+
+    # Verify that the sum of the spectrum levels multiplied by the bandwidth
+    # is equal to the power at the bottom of column 4 of Table 3.
+    def total_spectrum_power(name: str) -> float:
+      """Sum the bandwidth-weighted spectral level in each band."""
+      overall_energy = 0
+      for bin_number, speech_level in enumerate(sii.speech_spectrum(name)):
+        bandwidth_hz = 10**(sii.bandwidth_db[bin_number]/10)
+        overall_energy += (10**(speech_level/10))*bandwidth_hz
+      return 10*np.log10(overall_energy)
+
+    # Make sure sums equal the Overall SPL (dB) at the bottom of Table 3.
+    self.assertAlmostEqual(total_spectrum_power('normal'), 62.35, delta=0.01)
+    # TODO(malcolmslaney): Not sure why the tolerance for these must be higher!
+    self.assertAlmostEqual(total_spectrum_power('raised'), 68.34, delta=0.1)
+    self.assertAlmostEqual(total_spectrum_power('loud'), 74.85, delta=0.1)
+    self.assertAlmostEqual(total_spectrum_power('shout'), 82.30, delta=0.1)
 
   def example_1(self):
     # Example 1:
