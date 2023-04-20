@@ -103,7 +103,10 @@ def band_importance(test_number: Union[int, List[float],
   """Return a weighting vector for different kinds of tests.
 
   Args:
-    test_number: One of 8 different standard test for calculating importance:
+    test_number: Either an index from the table below or the actual desired
+      band-importance as an 18-element vector.
+
+      One of 8 different standard test for calculating importance:
       Standard
         1: Average speech as specified in Table 3
    		  2: various nonsense syllable tests where most English
