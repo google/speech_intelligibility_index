@@ -229,5 +229,71 @@ class ExampleTest(absltest.TestCase):
                                expected_protection, atol=1e-4)
 
 
+class Section5Tests(absltest.TestCase):
+
+  def test_input_5p1(self):
+    """Test the code that implements section 5.1 from the standard.
+
+    Output from Matlab call:
+      ssl, nsl, hearing_threshold] = Input_5p1('E', 'normal')
+    """
+    matlab_ssl = np.asarray([32.4100, 34.4800, 34.7500, 33.9800, 34.5900,
+                             34.2700, 32.0600, 28.3000, 25.0100, 23.0000,
+                             20.1500, 17.3200, 13.1800, 11.5500, 9.3300,
+                             5.3100, 2.5900, 1.1300])
+    matlab_nsl = -50*np.ones(18)
+    matlab_threshold = np.zeros(18)
+
+    ssl, nsl, hearing_threshold = sii.input_5p1('normal')
+
+    np.testing.assert_allclose(ssl, matlab_ssl, atol=1e-4)
+    np.testing.assert_allclose(nsl, matlab_nsl, atol=1e-4)
+    np.testing.assert_allclose(hearing_threshold, matlab_threshold, atol=1e-4)
+
+  def test_input_5p2(self):
+    """Test the code that implements section 5.2 from the standard.
+
+    Output from Matlab call:
+      [ssl, nsl, hearing_threshold] = Input_5p2('P', 50*ones(1,18),  ...
+                                                'M', ones(18, 9))
+    """
+    matlab_ssl = 49.8648 * np.ones(18)
+    matlab_nsl = 34.8648 * np.ones(18)
+    matlab_threshold = np.zeros(18)
+
+    ssl, nsl, hearing_threshold = sii.input_5p2(csns=50*np.ones(18),
+                                                mtf=np.ones((18, 9),
+                                                            dtype=float))
+
+    np.testing.assert_allclose(ssl, matlab_ssl, atol=1e-4)
+    np.testing.assert_allclose(nsl, matlab_nsl, atol=1e-4)
+    np.testing.assert_allclose(hearing_threshold, matlab_threshold, atol=1e-4)
+
+  def test_input_5p3(self):
+    """Test the code that implements section 5.3 from the standard.
+
+    Output from Matlab call:
+      [ssl, nsl, hearing_threshold] = Input_5p3('P', 50*ones(1,18),  ...
+                                                'M', ones(18, 9))
+    """
+    matlab_ssl = np.asarray([49.8648, 49.3648, 48.8648, 48.4648, 48.3648,
+                             48.0648, 47.4648, 46.7648, 47.2648, 46.8648,
+                             43.7648, 37.8648, 33.0648, 34.8648, 35.5648,
+                             39.1648, 43.4648, 48.0648])
+    matlab_nsl = np.asarray([34.8648, 34.3648, 33.8648, 33.4648, 33.3648,
+                             33.0648, 32.4648, 31.7648, 32.2648, 31.8648,
+                             28.7648, 22.8648, 18.0648, 19.8648, 20.5648,
+                             24.1648, 28.4648, 33.0648])
+    matlab_threshold = np.zeros(18)
+
+    ssl, nsl, hearing_threshold = sii.input_5p3(csns=50*np.ones(18),
+                                                mtf=np.ones((18, 9),
+                                                            dtype=float))
+
+    np.testing.assert_allclose(ssl, matlab_ssl, atol=1e-4)
+    np.testing.assert_allclose(nsl, matlab_nsl, atol=1e-4)
+    np.testing.assert_allclose(hearing_threshold, matlab_threshold, atol=1e-4)
+
+
 if __name__ == '__main__':
   absltest.main()

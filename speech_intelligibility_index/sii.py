@@ -256,6 +256,173 @@ def input_5p1(ssl, nsl=None, insertion_gain=None,
   return (ssl, nsl, hearing_threshold)
 
 
+def input_5p2(csns, mtf, gain=None,
+              hearing_threshold=None,
+              binaural=False)-> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+  """Implementation of Section 5.2 of ANSI S3.5-1997.
+
+  Determination of equivalent speech, noise, and threshold spectrum levels:
+  method based on MTFI/CSNSL measurements at the listener's position.  The
+  output produced by this function is intended to be passed to the function
+  sii.
+
+  Copyright 2005 Hannes Muesch & Pat Zurek. Translated to Pythom in 2023.
+
+  Args:
+    csns: Combined Speech and Noise Spectrum Level [dB] (Section 3.17)
+      A row or column vector with 18 numbers stating the Combined Speech and
+      Noise Spectrum Level in dB in bands 1 through 18.
+    mtf:  Modulation Transfer Function for Intensity (Section 3.31)
+      An 18x9 matrix containing the Modulation Transfer Function for Intensity
+      at the 18 third-octave audio frequencies and the 9 modulation frequencies
+      specified in Section 5.2.3.3.
+    gain: Insertion Gain [dB] (Section 3.28)
+      A row or column vector with 18 numbers stating the Insertion Gain in dB in
+      bands 1 through 18. If this identifier is omitted, a default Insertion
+      Gain of 0 dB is assumed in all 18 bands.
+    hearing_threshold: Hearing Threshold Level [dB HL] (Section 3.22)
+       A row or column vector with 18 numbers stating the Hearing Threshold
+       Levels in dBHL in bands 1 through 18. If this identifier is omitted, a
+       default Equivalent Hearing Threshold Level of 0 dBHL is assumed in all
+       18 bands.
+    binaural: A boolean indicating the listening mode: if False then monaural
+      listening, binaural listening if True. Monaural is the default.
+
+  Returns:
+    A tuple of three numpy arrays giving the speech spectrum level (ssl),
+    noise spectrum level (msl) and hearing_threshold.
+  """
+  csns = np.asarray(csns)
+  if csns.shape != (18,):
+    raise ValueError('Combined Speech and Noise Spectrum Level: Vector size '
+                     'incorrect')
+
+  mtf = np.asarray(mtf)
+  if mtf.shape != (18, 9):
+    raise ValueError('Modulation Transfer Function for Intensity: '
+                     'Matrix size incorrect')
+
+  if gain is None:
+    gain = np.zeros(18, dtype=float)
+  else:
+    gain = np.asarray(gain)
+  if gain.shape != (18,):
+    raise ValueError('Insertion Gain: Vector size incorrect')
+
+  # DERIVE EQUIVALENT HEARING THRESHOLD LEVEL
+  if hearing_threshold is None:
+    hearing_threshold = np.zeros(18, dtype=float)
+  else:
+    hearing_threshold = np.asarray(hearing_threshold)
+  if hearing_threshold.shape != (18,):
+    raise ValueError('Hearing Threshold Level: Vector size incorrect')
+
+  if binaural:  # Binaural listening
+    hearing_threshold = hearing_threshold - 1.7  # Section 5.1.5
+
+  eps = np.finfo(float).eps
+  # apparent speech-to-noise ratio (5.2.3.5, Eq. 22)
+  snr = 10*np.log10((mtf+eps) / (1-mtf+eps))
+  snr = np.minimum(15.0, np.maximum(-15.0, snr))  # limit to range -15 .. +15 dB
+  snr = np.mean(snr, axis=1)  # Average across modulation frequencies (5.2.3.6)
+  # Equivalent Speech and Equivalent Noise spectra (5.2.3.8, Eq. 23
+  esnr = snr + 10*np.log10(10**(csns/10) / (1 + 10**(snr/10)) )
+  nsl = esnr - snr                                             # ... and Eq 24)
+
+  ###
+  # Note: Eq. 23 and 24 represent the Equivalent Speech and Equivalent Noise
+  esnr = esnr + gain
+  # spectra only if the insertion gain is 0dB. Provisions for insertion gain
+  # are not explicitly shown in the standard. However, they are necessary and
+  # are applied here
+  nsl = nsl + gain
+
+  return esnr, nsl, hearing_threshold
+
+
+def ff2ed() -> Tuple[np.ndarray, np.ndarray]:
+  """Free-field to eardrum transfer function.
+
+  Returned at the 1/3 oct frequencies between 160 Hz and 8000Hz, inclusive.
+  (From Table 3
+  Returns:
+    Blah
+    Blah
+  """
+
+  tf = [0, 0.50, 1.00, 1.40, 1.50, 1.80, 2.40, 3.10, 2.60, 3.00, 6.10,
+        12.00, 16.80, 15.00, 14.30, 10.70, 6.40, 1.80]
+  fc = [160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600,
+        2000, 2500, 3150, 4000, 5000, 6300, 8000]
+  return np.asarray(tf), np.asarray(fc)
+
+
+def input_5p3(csns, mtf, hearing_threshold=None,
+              binaural=False)-> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+  """Implementation of Section 5.3 of ANSI S3.5-1997.
+
+  Determination of equivalent speech, noise, and threshold spectrum levels:
+  method based on MTFI/CSNSL measurements at the eardrum of the listener.
+
+  The output produced by this function is intended to be passed to the function
+  sii.
+
+  Args:
+    csns: Combined Speech and Noise Spectrum Level [dB] (Section 3.17)
+      A row or column vector with 18 numbers stating the Combined Speech and
+      Noise Spectrum Level in dB in bands 1 through 18.
+    mtf:  Modulation Transfer Function for Intensity (Section 3.31)
+      An 18x9 matrix containing the Modulation Transfer Function for Intensity
+      at the 18 third-octave audio frequencies and the 9 modulation frequencies
+      specified in Section 5.2.3.3.
+    hearing_threshold: Hearing Threshold Level [dB HL] (Section 3.22)
+       A row or column vector with 18 numbers stating the Hearing Threshold
+       Levels in dBHL in bands 1 through 18. If this identifier is omitted, a
+       default Equivalent Hearing Threshold Level of 0 dBHL is assumed in all
+       18 bands.
+    binaural: A boolean indicating the listening mode: if False then monaural
+      listening, binaural listening if True. Monaural is the default.
+
+  Returns:
+    A tuple of three numpy arrays giving the speech spectrum level (ssl),
+    noise spectrum level (msl) and hearing_threshold.
+  """
+  if csns.shape != (18,):
+    raise ValueError('Combined Speech and Noise Spectrum Level: Vector size '
+                     'incorrect')
+
+  mtf = np.asarray(mtf)
+  if mtf.shape != (18, 9):
+    raise ValueError('Modulation Transfer Function for Intensity: '
+                     'Matrix size incorrect')
+
+  # DERIVE EQUIVALENT HEARING THRESHOLD LEVEL
+  if hearing_threshold is None:
+    hearing_threshold = np.zeros(18, dtype=float)
+  else:
+    hearing_threshold = np.asarray(hearing_threshold)
+  if hearing_threshold.shape != (18,):
+    raise ValueError('Hearing Threshold Level: Vector size incorrect')
+
+  if binaural:  # Binaural listening
+    hearing_threshold = hearing_threshold - 1.7  # Section 5.1.5
+
+  eps = np.finfo(float).eps
+  # apparent speech-to-noise ratio (5.2.3.5, Eq. 22)
+  snr = 10*np.log10((mtf+eps) / (1-mtf+eps))
+  snr = np.minimum(15, np.maximum(-15, snr))  # limit to range -15 ... +15 dB
+  snr = np.mean(snr, axis=1)  #  Average across modulation frequencies (5.2.3.6)
+  # APPARENT Speech and APPARENT Noise spectra (5.3.3.3, Eq. 25 and Eq 26)
+  esnr = snr + 10*np.log10(10**(csns/10) / (1 + 10**(snr/10)))
+  nsl = esnr - snr
+
+  tf, _ = ff2ed()
+  esnr = esnr - tf  # Equivalent Speech Spectrum Level (Eq 27)
+  nsl = nsl - tf   # Equivalent Noise Spectrum Level (Eq 28)
+
+  return esnr, nsl, hearing_threshold
+
+
 def sii(ssl, nsl=None, hearing_threshold=None,
         band_importance_function: int = 1) -> float:
   """Compute the speech intelligibility index according to the ANSI standard.
