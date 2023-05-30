@@ -15,8 +15,8 @@
 """Python implementation of ANSI S3.5-1997  - Speech Intelligibility Index.
 
 This code implements a model of speech intelligibility based on measurements
-of the speech spectrum, and the underlying noise. It implements the one-third
-octave band SII procedure.
+of the speech spectrum, and the underlying noise. It implements only the
+one-third octave band SII procedure.
 
 Original Matlab Version Copyright 2003-2005 Hannes Muesch
 Translation to Matlab by Malcolm Slaney, Google Sound Understanding Team
@@ -63,6 +63,7 @@ def speech_spectrum(vocal_effort: str) -> np.ndarray:
   """
 
   # pylint: disable=bad-whitespace  # To make it easier to read columns
+  # This is table 3 from the ANSI standard
   ei = [[32.41, 33.81, 35.29, 30.77],
         [34.48, 33.92, 37.76, 36.65],
         [34.75, 38.98, 41.55, 42.5],
@@ -98,19 +99,27 @@ def speech_spectrum(vocal_effort: str) -> np.ndarray:
     raise ValueError(f'Identifier string {vocal_effort} not recognized')
 
 
-def band_importance(test_number: Union[int, List[float],
+band_importance_names = ['standard',  # Table 3
+                         'nns', 'cid-22', 'nu6',  # All the rest from Table B.2
+                         'drt', 'spin', 'short', 'spin', 'cst']
+
+
+def band_importance(test_number: Union[int, List[float], str,
                                        np.ndarray]) -> np.ndarray:
   """Return a weighting vector for different kinds of tests.
 
+  Different speech materials have different average spectra, and this data
+  reflects those differences.
+
   Args:
-    test_number: Either an index from the table below or the actual desired
-      band-importance as an 18-element vector.
+    test_number: Either a name from the list above, an index from the table
+      below, or the actual desired band-importance as an 18-element vector.
 
       One of 8 different standard test for calculating importance:
       Standard
-        1: Average speech as specified in Table 3
+        1: Average speech as specified in the band-importance columne of Table 3
    		  2: various nonsense syllable tests where most English
-  	       phonemes occur equally often
+  	       phonemes occur equally often (NNS from Table B.2)
         3: CID-22
         4: NU6
         5: Diagnostic Rhyme test
@@ -118,16 +127,24 @@ def band_importance(test_number: Union[int, List[float],
         7: SPIN
       Non_standard:
         8: CST (Table 1 of Sherbecoe and Studebaker, Ear and Hearing 2003)
+           Article includes one extra band below this table and one above.
   Returns:
     An np vector showing the importance of each band.
   """
+  if isinstance(test_number, str):
+    if test_number not in band_importance_names:
+      raise ValueError(f'Test name {test_number} not recognized, should be '
+                       f'one of: {band_importance_names}')
+    else:
+      test_number = band_importance_names.index(test_number)
+
   if isinstance(test_number, int):
     if test_number < 1 or test_number > 8:
       raise ValueError('Test number must be between 1 and 8')
 
     # pylint: disable=bad-whitespace  # To make it easier to read columns
     band_importance_array = [
-        [0.0083, 0,      0.0365, 0.0168, 0,      0.0114, 0, 0.0082],
+        [0.0083, 0,      0.0365, 0.0168, 0,      0.0114, 0,       0.0082],
         [0.0095, 0,      0.0279, 0.013,  0.024,  0.0153, 0.0255,  0.0168],
         [0.015,  0.0153, 0.0405, 0.0211, 0.033,  0.0179, 0.0256,  0.0255],
         [0.0289, 0.0284, 0.05,   0.0344, 0.039,  0.0558, 0.036,   0.0374],
@@ -144,7 +161,7 @@ def band_importance(test_number: Union[int, List[float],
         [0.0771, 0.0867, 0.0498, 0.0562, 0.048,  0.0483, 0.0719,  0.0596],
         [0.0527, 0.0728, 0.0312, 0.0337, 0.033,  0.0453, 0.0461,  0.0454],
         [0.0364, 0.0551, 0.0215, 0.0177, 0.027,  0.0274, 0.0306,  0.0365],
-        [0.0185, 0,      0.0253, 0.0176, 0.024,  0.0145, 0, 0.0275]
+        [0.0185, 0,      0.0253, 0.0176, 0.024,  0.0145, 0,       0.0275]
         ]
     band_importance_array = np.array(band_importance_array)
     return band_importance_array[:, test_number-1]
@@ -275,7 +292,8 @@ def input_5p2(csns, mtf, gain=None,
     mtf:  Modulation Transfer Function for Intensity (Section 3.31)
       An 18x9 matrix containing the Modulation Transfer Function for Intensity
       at the 18 third-octave audio frequencies and the 9 modulation frequencies
-      specified in Section 5.2.3.3.
+      specified in Section 5.2.3.3 (0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0 and
+      16.0Hz).
     gain: Insertion Gain [dB] (Section 3.28)
       A row or column vector with 18 numbers stating the Insertion Gain in dB in
       bands 1 through 18. If this identifier is omitted, a default Insertion
@@ -374,7 +392,8 @@ def input_5p3(csns, mtf, hearing_threshold=None,
     mtf:  Modulation Transfer Function for Intensity (Section 3.31)
       An 18x9 matrix containing the Modulation Transfer Function for Intensity
       at the 18 third-octave audio frequencies and the 9 modulation frequencies
-      specified in Section 5.2.3.3.
+      specified in Section 5.2.3.3 (0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0 and
+      16.0Hz).
     hearing_threshold: Hearing Threshold Level [dB HL] (Section 3.22)
        A row or column vector with 18 numbers stating the Hearing Threshold
        Levels in dBHL in bands 1 through 18. If this identifier is omitted, a

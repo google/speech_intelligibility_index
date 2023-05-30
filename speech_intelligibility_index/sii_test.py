@@ -228,6 +228,11 @@ class ExampleTest(absltest.TestCase):
     np.testing.assert_allclose(np.array(protected_list),
                                expected_protection, atol=1e-4)
 
+    def test_band_importance_names(self):
+      actual = sii.band_importance('spin') # Just for instance
+      expected = sii.band_importance(7)
+      np.testing.assert_allclose(actual, expected, atol=1e-4)
+
 
 class Section5Tests(absltest.TestCase):
 
