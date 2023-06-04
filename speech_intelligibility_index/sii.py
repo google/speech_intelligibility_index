@@ -283,7 +283,7 @@ def input_5p2(csns, mtf, gain=None,
   output produced by this function is intended to be passed to the function
   sii.
 
-  Copyright 2005 Hannes Muesch & Pat Zurek. Translated to Pythom in 2023.
+  Copyright 2005 Hannes Muesch & Pat Zurek. Translated to Python in 2023.
 
   Args:
     csns: Combined Speech and Noise Spectrum Level [dB] (Section 3.17)
