@@ -32,4 +32,4 @@
 
 # No imports here, instead use
 #    from speech_intelligibility_index import XXX
-# where XXX is the individual file name.
+# where XXX is the individual file name (sii.py or sii_jax.py)
